@@ -1,0 +1,115 @@
+/* Hiệu ứng fade-in cho overlay và message */
+.message {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Container cho các hình khối động */
+.shapes-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* Các hình khối động */
+.shape {
+  position: absolute;
+}
+
+.shape-1 { top: 10%; left: 20%; animation: float 10s infinite linear; }
+.shape-2 { top: 30%; right: 15%; animation: float 12s infinite linear; }
+.shape-3 { bottom: 20%; left: 40%; animation: float 8s infinite linear; }
+.shape-4 { top: 50%; left: 70%; animation: float 15s infinite linear; }
+.shape-5 { bottom: 10%; right: 30%; animation: float 11s infinite linear; }
+.shape-6 { top: 15%; left: 50%; animation: float 9s infinite linear; }
+.shape-7 { bottom: 25%; right: 20%; animation: float-delayed 13s infinite linear; }
+.shape-8 { top: 40%; left: 10%; animation: float 7s infinite linear; }
+.shape-9 { bottom: 5%; left: 60%; animation: float-delayed 14s infinite linear; }
+.shape-10 { top: 60%; right: 10%; animation: float 16s infinite linear; }
+.shape-11 { top: 5%; left: 30%; animation: float 10s infinite linear; }
+.shape-12 { top: 70%; right: 25%; animation: float-delayed 12s infinite linear; }
+.shape-13 { bottom: 15%; left: 15%; animation: float 9s infinite linear; }
+.shape-14 { top: 25%; left: 80%; animation: float-delayed 11s infinite linear; }
+.shape-15 { bottom: 30%; right: 5%; animation: float 13s infinite linear; }
+.shape-16 { top: 45%; left: 25%; animation: float 8s infinite linear; }
+.shape-17 { bottom: 40%; right: 35%; animation: float-delayed 14s infinite linear; }
+.shape-18 { top: 55%; left: 65%; animation: float 10s infinite linear; }
+.shape-19 { bottom: 35%; left: 45%; animation: float-delayed 12s infinite linear; }
+.shape-20 { top: 20%; right: 40%; animation: float 15s infinite linear; }
+
+@keyframes float {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(50px, 50px) rotate(90deg); }
+  50% { transform: translate(0, 100px) rotate(180deg); }
+  75% { transform: translate(-50px, 50px) rotate(270deg); }
+  100% { transform: translate(0, 0) rotate(360deg); }
+}
+
+@keyframes float-delayed {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-50px, -50px) rotate(90deg); }
+  50% { transform: translate(0, -100px) rotate(180deg); }
+  75% { transform: translate(50px, -50px) rotate(270deg); }
+  100% { transform: translate(0, 0) rotate(360deg); }
+}
+
+/* Style cho các ô ngày trong lịch */
+.calendar-day {
+  padding: 10px;
+  background: rgba(45, 45, 45, 0.8);
+  color: #e5e5e5;
+  text-align: center;
+  border-radius: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  cursor: pointer;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.calendar-day:hover {
+  transform: scale(1.05);
+  background: rgba(53, 53, 53, 0.8);
+  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+}
+
+.calendar-day.selected {
+  background: linear-gradient(45deg, #d4af37, #a3bffa);
+  color: #121212;
+  border-color: #d4af37;
+}
+
+/* Style cho tab */
+.tab.active {
+  background: linear-gradient(45deg, #d4af37, #a3bffa);
+  color: #121212;
+}
+
+/* Style cho bảng lịch sử */
+.history-table th, .history-table td {
+  padding: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.history-table th {
+  background: rgba(45, 45, 45, 0.8);
+}
+
+.prediction-box {
+  display: inline-block;
+  background: linear-gradient(45deg, #d4af37, #a3bffa);
+  color: #121212;
+  padding: 5px 10px;
+  border-radius: 4px;
+}
