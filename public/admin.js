@@ -405,3 +405,46 @@ document.addEventListener('DOMContentLoaded', () => {
     container.scrollTop = container.scrollHeight;
   }
 });
+
+// Trong admin.js
+// Thêm hàm quản lý overlay
+function openOverlay(overlay) {
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  document.body.style.height = '100vh';
+}
+
+function closeOverlay(overlay) {
+  overlay.style.display = 'none';
+  document.body.style.overflow = 'auto';
+  document.body.style.height = 'auto';
+}
+
+// Cập nhật sự kiện overlay
+changePasswordClose.addEventListener('click', () => closeOverlay(changePasswordOverlay));
+recordsClose.addEventListener('click', () => closeOverlay(recordsOverlay));
+editRecordClose.addEventListener('click', () => closeOverlay(editRecordOverlay));
+
+// Cập nhật mở overlay
+changePasswordBtn.addEventListener('click', () => openOverlay(changePasswordOverlay));
+imageBtn.addEventListener('click', () => {
+  currentCollection = 'images';
+  recordsTitle.textContent = 'Danh Sách Bản Ghi Image';
+  currentPage = 1;
+  fetchRecords();
+  openOverlay(recordsOverlay);
+});
+metadataBtn.addEventListener('click', () => {
+  currentCollection = 'metadata';
+  recordsTitle.textContent = 'Danh Sách Bản Ghi Metadata';
+  currentPage = 1;
+  fetchRecords();
+  openOverlay(recordsOverlay);
+});
+predictionBtn.addEventListener('click', () => {
+  currentCollection = 'predictions';
+  recordsTitle.textContent = 'Danh Sách Bản Ghi Prediction';
+  currentPage = 1;
+  fetchRecords();
+  openOverlay(recordsOverlay);
+});

@@ -46,6 +46,25 @@ document.addEventListener('DOMContentLoaded', () => {
   let imageId = null;
   let mmyyValue = null;
 
+  // Hàm quản lý overlay
+  function openOverlay(overlay) {
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Khóa cuộn khi mở overlay
+    document.body.style.height = '100vh';
+  }
+
+  function closeOverlay(overlay) {
+    overlay.style.display = 'none';
+    document.body.style.overflow = 'auto'; // Gỡ khóa cuộn khi đóng
+    document.body.style.height = 'auto';
+  }
+
+  // Hàm đóng và xóa log
+  function resetLogOverlay() {
+    closeOverlay(logOverlay);
+    logMessages.innerHTML = ''; // Xóa nội dung log
+  }
+
   // Kiểm tra trạng thái đăng nhập
   async function checkAuth() {
     try {
@@ -81,12 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showTab(tabId) {
     tabs.forEach(t => t.classList.remove('active'));
-    // Ẩn tất cả các tab content
     ['predict-tab', 'change-password-tab', 'history-tab', 'logout-tab'].forEach(id => {
       const element = document.getElementById(id);
       if (element) element.classList.add('hidden');
     });
-    // Hiển thị tab được chọn
     const selectedTab = document.getElementById(`${tabId}-tab`);
     if (selectedTab) selectedTab.classList.remove('hidden');
     document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
@@ -177,13 +194,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const response = await fetch('http://localhost:5000/logout', {
         method: 'POST',
-        credentials: 'include' // Đảm bảo gửi cookie session
+        credentials: 'include'
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       predictionSection.classList.add('hidden');
       loginSection.classList.remove('hidden');
-      await checkAuth(); // Kiểm tra lại trạng thái
+      await checkAuth();
     } catch (error) {
       logMessage(`Lỗi khi đăng xuất: ${error.message}`, 'error', logMessages);
       console.error('Error logging out:', error);
@@ -247,120 +264,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Xử lý nút Predict
   predictBtn.addEventListener('click', async () => {
-    logMessages.innerHTML = '';
-    calendarOverlay.style.display = 'none';
-    progressOverlay.style.display = 'none';
-    resultOverlay.style.display = 'none';
-    csvData = [];
-    lastDate = null;
-    selectedStartDate = null;
-    selectedEndDate = null;
-    predictionDates = [];
-    predictionResults = [];
-    metadataIds = [];
-    imageId = null;
-    mmyyValue = null;
+  logMessages.innerHTML = ''; // Xóa log cũ
+  closeOverlay(calendarOverlay);
+  closeOverlay(progressOverlay);
+  closeOverlay(resultOverlay);
+  csvData = [];
+  lastDate = null;
+  selectedStartDate = null;
+  selectedEndDate = null;
+  predictionDates = [];
+  predictionResults = [];
+  metadataIds = [];
+  imageId = null;
+  mmyyValue = null;
 
-    logOverlay.style.display = 'flex';
+  openOverlay(logOverlay);
 
-    if (!imageInput.files || imageInput.files.length === 0) {
-      logMessage('Lỗi: Vui lòng chọn một ảnh!', 'error');
+  if (!imageInput.files || imageInput.files.length === 0) {
+    logMessage('Lỗi: Vui lòng chọn một ảnh!', 'error');
+    return;
+  }
+  const imageFile = imageInput.files[0];
+  const imageMimeType = imageFile.type;
+  if (!imageMimeType || !imageMimeType.startsWith('image/')) {
+    logMessage('Lỗi: File không phải là ảnh hợp lệ!', 'error');
+    return;
+  }
+  logMessage('Ảnh hợp lệ.', 'success');
+
+  if (!csvInput.files || csvInput.files.length === 0) {
+    logMessage('Lỗi: Vui lòng chọn một file CSV!', 'error');
+    return;
+  }
+  const csvFile = csvInput.files[0];
+  try {
+    csvData = await parseCSV(csvFile);
+    logMessage(`Đã đọc file CSV: ${csvData.length} bản ghi.`, 'success');
+    console.log('Dữ liệu CSV:', JSON.stringify(csvData, null, 2));
+  } catch (error) {
+    logMessage(`Lỗi khi đọc file CSV: ${error.message}`, 'error');
+    return;
+  }
+
+  if (csvData.length < 4) {
+    logMessage('Lỗi: File CSV phải có ít nhất 4 bản ghi!', 'error');
+    return;
+  }
+  logMessage('Số lượng bản ghi đủ (>= 4).', 'success');
+
+  // Kiểm tra sự tồn tại của dd/mm/yy, bỏ kiểm tra hh
+  if (!csvData.every(record => record['dd/mm/yy'])) {
+    logMessage('Lỗi: Mỗi bản ghi phải có trường dd/mm/yy!', 'error');
+    return;
+  }
+  logMessage('Tất cả bản ghi có trường dd/mm/yy.', 'success');
+
+  if (!csvData.every(record => record.value && Array.isArray(record.value) && record.value.length === 3)) {
+    logMessage('Lỗi: Mỗi bản ghi phải có trường value chứa đúng 3 cặp name-value!', 'error');
+    return;
+  }
+  logMessage('Tất cả bản ghi có trường value hợp lệ.', 'success');
+
+  const mmyy = mmyyInput.value;
+  if (!mmyy.match(/^\d{2}\/\d{2}$/)) {
+    logMessage('Lỗi: Định dạng tháng/năm không hợp lệ. Sử dụng mm/yy (ví dụ: 07/23)!', 'error');
+    return;
+  }
+  logMessage('Tháng/năm của ảnh hợp lệ.', 'success');
+
+  const csvMMYYs = csvData.map(record => record['mm/yy']);
+  if (!csvMMYYs.every(csvMMYY => csvMMYY === mmyy)) {
+    logMessage('Lỗi: Tháng/năm của ảnh không khớp với CSV!', 'error');
+    return;
+  }
+  logMessage('Tháng/năm khớp với CSV.', 'success');
+
+  // Bỏ kiểm tra thời gian liên tiếp theo giờ vì đã gộp theo ngày
+  // const dates = csvData.map(record => moment(`${record['dd/mm/yy']} ${record['hh']}`, 'DD/MM/YY HH:mm:ss'));
+  // for (let i = 1; i < dates.length; i++) {
+  //   if (!dates[i].isSame(dates[i - 1].clone().add(1, 'hour'))) {
+  //     logMessage('Lỗi: Các thời điểm trong CSV không liên tiếp theo giờ!', 'error');
+  //     return;
+  //   }
+  // }
+  // logMessage('Các thời điểm trong CSV liên tiếp.', 'success');
+
+  // Kiểm tra các ngày có liên tiếp không (tùy chọn, nếu cần)
+  const dates = csvData.map(record => moment(record['dd/mm/yy'], 'DD/MM/YY'));
+  for (let i = 1; i < dates.length; i++) {
+    if (!dates[i].isSame(dates[i - 1].clone().add(1, 'day'))) {
+      logMessage('Lỗi: Các ngày trong CSV không liên tiếp!', 'error');
       return;
     }
-    const imageFile = imageInput.files[0];
-    const imageMimeType = imageFile.type;
-    if (!imageMimeType || !imageMimeType.startsWith('image/')) {
-      logMessage('Lỗi: File không phải là ảnh hợp lệ!', 'error');
-      return;
-    }
-    logMessage('Ảnh hợp lệ.', 'success');
+  }
+  logMessage('Các ngày trong CSV liên tiếp.', 'success');
 
-    if (!csvInput.files || csvInput.files.length === 0) {
-      logMessage('Lỗi: Vui lòng chọn một file CSV!', 'error');
-      return;
-    }
-    const csvFile = csvInput.files[0];
-    try {
-      csvData = await parseCSV(csvFile);
-      logMessage(`Đã đọc file CSV: ${csvData.length} bản ghi.`, 'success');
-      console.log('Dữ liệu CSV:', JSON.stringify(csvData, null, 2));
-    } catch (error) {
-      logMessage(`Lỗi khi đọc file CSV: ${error.message}`, 'error');
-      return;
-    }
+  try {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('mmyy', mmyy);
+    formData.append('metadata', JSON.stringify(csvData.map(record => ({
+      dd: record['dd'],
+      'mm/yy': record['mm/yy'],
+      list_value: record['value']
+    }))));
+    const response = await fetch('http://localhost:5000/save-data', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Lỗi không biết');
+    imageId = data.image_id;
+    metadataIds = data.metadata_ids;
+    mmyyValue = data.mmyy;
+    logMessage('Đã lưu ảnh và metadata vào database.', 'success');
+  } catch (error) {
+    logMessage(`Lỗi khi lưu dữ liệu: ${error.message}`, 'error');
+    return;
+  }
 
-    if (csvData.length < 4) {
-      logMessage('Lỗi: File CSV phải có ít nhất 4 bản ghi!', 'error');
-      return;
-    }
-    logMessage('Số lượng bản ghi đủ (>= 4).', 'success');
-
-    if (!csvData.every(record => record['dd/mm/yy'] && record['hh'])) {
-      logMessage('Lỗi: Mỗi bản ghi phải có trường dd/mm/yy và hh!', 'error');
-      return;
-    }
-    logMessage('Tất cả bản ghi có trường dd/mm/yy và hh.', 'success');
-
-    if (!csvData.every(record => record.value && Array.isArray(record.value) && record.value.length === 3)) {
-      logMessage('Lỗi: Mỗi bản ghi phải có trường value chứa đúng 3 cặp name-value!', 'error');
-      return;
-    }
-    logMessage('Tất cả bản ghi có trường value hợp lệ.', 'success');
-
-    const mmyy = mmyyInput.value;
-    if (!mmyy.match(/^\d{2}\/\d{2}$/)) {
-      logMessage('Lỗi: Định dạng tháng/năm không hợp lệ. Sử dụng mm/yy (ví dụ: 07/23)!', 'error');
-      return;
-    }
-    logMessage('Tháng/năm của ảnh hợp lệ.', 'success');
-
-    const csvMMYYs = csvData.map(record => record['mm/yy']);
-    if (!csvMMYYs.every(csvMMYY => csvMMYY === mmyy)) {
-      logMessage('Lỗi: Tháng/năm của ảnh không khớp với CSV!', 'error');
-      return;
-    }
-    logMessage('Tháng/năm khớp với CSV.', 'success');
-
-    const dates = csvData.map(record => moment(`${record['dd/mm/yy']} ${record['hh']}`, 'DD/MM/YY HH:mm:ss'));
-    for (let i = 1; i < dates.length; i++) {
-      if (!dates[i].isSame(dates[i - 1].clone().add(1, 'hour'))) {
-        logMessage('Lỗi: Các thời điểm trong CSV không liên tiếp theo giờ!', 'error');
-        return;
-      }
-    }
-    logMessage('Các thời điểm trong CSV liên tiếp.', 'success');
-
-    try {
-      const formData = new FormData();
-      formData.append('image', imageFile);
-      formData.append('mmyy', mmyy);
-      formData.append('metadata', JSON.stringify(csvData.map(record => ({
-        hh: record['hh'],
-        dd: record['dd'],
-        'mm/yy': record['mm/yy'],
-        list_value: record.value
-      }))));
-      const response = await fetch('http://localhost:5000/save-data', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Lỗi không biết');
-      imageId = data.image_id;
-      metadataIds = data.metadata_ids;
-      mmyyValue = data.mmyy;
-      logMessage('Đã lưu ảnh và metadata vào database.', 'success');
-    } catch (error) {
-      logMessage(`Lỗi khi lưu dữ liệu: ${error.message}`, 'error');
-      return;
-    }
-
-    logOverlay.style.display = 'none';
-    calendarOverlay.style.display = 'flex';
-    lastDate = dates[dates.length - 1];
-    displayCalendar(lastDate);
-  });
+  closeOverlay(logOverlay);
+  openOverlay(calendarOverlay);
+  lastDate = dates[dates.length - 1];
+  displayCalendar(lastDate);
+});
 
   // Xử lý lịch
   calendarGrid.addEventListener('click', (e) => {
@@ -409,8 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
       currentDate.add(1, 'day');
     }
 
-    calendarOverlay.style.display = 'none';
-    progressOverlay.style.display = 'flex';
+    closeOverlay(calendarOverlay);
+    openOverlay(progressOverlay);
     progressBar.style.width = '0%';
 
     let progress = 0;
@@ -459,12 +487,14 @@ document.addEventListener('DOMContentLoaded', () => {
           logMessage(`Lỗi khi lưu kết quả: ${error.message}`, 'error');
         }
 
-        progressOverlay.style.display = 'none';
-        resultOverlay.style.display = 'flex';
+        closeOverlay(progressOverlay);
+        resetLogOverlay(); // Xóa log sau khi dự đoán xong
+        openOverlay(resultOverlay);
         displayResults();
       } catch (error) {
         logMessage(`Lỗi khi dự đoán: ${error.message}`, 'error');
-        progressOverlay.style.display = 'none';
+        closeOverlay(progressOverlay);
+        resetLogOverlay(); // Xóa log nếu dự đoán lỗi
       }
     }
   });
@@ -522,67 +552,101 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Parse CSV
-  function parseCSV(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const text = event.target.result;
-          const rows = text.split('\n').filter(row => row.trim());
-          const headers = rows[0].split(',').map(header => header.trim());
-          
-          const requiredHeaders = ['thoi_gian', 'muc_nuoc_ho', 'luu_luong_den_ho', 'tong_luu_luong_xa_thuc_te'];
-          if (!requiredHeaders.every(h => headers.includes(h))) {
-            throw new Error('File CSV phải chứa các cột: thoi_gian, muc_nuoc_ho, luu_luong_den_ho, tong_luu_luong_xa_thuc_te');
-          }
-
-          const data = rows.slice(1).map(row => {
-            const values = row.split(',').map(val => val.trim());
-            const record = { value: [] };
-            headers.forEach((header, index) => {
-              if (header === 'thoi_gian') {
-                const timeMoment = moment(values[index], 'YYYY-MM-DD HH:mm:ss');
-                if (!timeMoment.isValid()) {
-                  throw new Error(`Định dạng thời gian không hợp lệ: ${values[index]}`);
-                }
-                record['dd/mm/yy'] = timeMoment.format('DD/MM/YY');
-                record['hh'] = timeMoment.format('HH:mm:ss');
-                record['dd'] = timeMoment.format('DD');
-                record['mm/yy'] = timeMoment.format('MM/YY');
-              } else if (requiredHeaders.includes(header)) {
-                const numericValue = parseFloat(values[index]);
-                if (isNaN(numericValue)) {
-                  throw new Error(`Giá trị không hợp lệ cho ${header}: ${values[index]}`);
-                }
-                let name;
-                switch (header) {
-                  case 'muc_nuoc_ho':
-                    name = 'Muc_nuoc_ho';
-                    break;
-                  case 'luu_luong_den_ho':
-                    name = 'Luu_luong_den_ho';
-                    break;
-                  case 'tong_luu_luong_xa_thuc_te':
-                    name = 'Tong_luu_luong_xa_thuc_te';
-                    break;
-                }
-                record.value.push({
-                  name,
-                  value: numericValue
-                });
-              }
-            });
-            return record;
-          });
-          resolve(data);
-        } catch (error) {
-          reject(error);
+  // Trong index.js
+// Trong index.js
+function parseCSV(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const rows = text.split('\n').filter(row => row.trim());
+        const headers = rows[0].split(',').map(header => header.trim());
+        
+        const requiredHeaders = ['thoi_gian', 'muc_nuoc_ho', 'luu_luong_den_ho', 'tong_luu_luong_xa_thuc_te'];
+        if (!requiredHeaders.every(h => headers.includes(h))) {
+          throw new Error('File CSV phải chứa các cột: thoi_gian, muc_nuoc_ho, luu_luong_den_ho, tong_luu_luong_xa_thuc_te');
         }
-      };
-      reader.onerror = () => reject(new Error('Lỗi khi đọc file CSV'));
-      reader.readAsText(file);
-    });
-  }
+
+        // Parse dữ liệu thành mảng các bản ghi
+        const rawData = rows.slice(1).map(row => {
+          const values = row.split(',').map(val => val.trim());
+          const record = {};
+          headers.forEach((header, index) => {
+            if (header === 'thoi_gian') {
+              // Hỗ trợ nhiều định dạng thời gian
+              const timeMoment = moment(values[index], [
+                'M/D/YYYY H:mm',      // 7/1/2023 0:00
+                'DD/MM/YYYY HH:mm:ss', // 01/07/2023 00:00:00
+                'D/M/YYYY H:mm',      // 7/1/2023 0:00
+                'YYYY-MM-DD HH:mm:ss' // 2023-07-01 00:00:00
+              ]);
+              if (!timeMoment.isValid()) {
+                throw new Error(`Định dạng thời gian không hợp lệ: ${values[index]}`);
+              }
+              record['dd/mm/yy'] = timeMoment.format('DD/MM/YY');
+              record['dd'] = timeMoment.format('DD');
+              record['mm/yy'] = timeMoment.format('MM/YY');
+            } else if (requiredHeaders.includes(header)) {
+              const numericValue = parseFloat(values[index]);
+              if (isNaN(numericValue)) {
+                throw new Error(`Giá trị không hợp lệ cho ${header}: ${values[index]}`);
+              }
+              record[header] = numericValue;
+            }
+          });
+          return record;
+        });
+
+        // Nhóm dữ liệu theo ngày (dd/mm/yy) và tính trung bình
+        const groupedData = {};
+        rawData.forEach(record => {
+          const key = record['dd/mm/yy'];
+          if (!groupedData[key]) {
+            groupedData[key] = {
+              'dd/mm/yy': record['dd/mm/yy'],
+              'dd': record['dd'],
+              'mm/yy': record['mm/yy'],
+              values: []
+            };
+          }
+          groupedData[key].values.push({
+            muc_nuoc_ho: record['muc_nuoc_ho'],
+            luu_luong_den_ho: record['luu_luong_den_ho'],
+            tong_luu_luong_xa_thuc_te: record['tong_luu_luong_xa_thuc_te']
+          });
+        });
+
+        // Tính trung bình cho từng ngày
+        const data = Object.values(groupedData).map(group => {
+          const meanValues = group.values.reduce((acc, val) => {
+            acc.muc_nuoc_ho = (acc.muc_nuoc_ho || 0) + val.muc_nuoc_ho;
+            acc.luu_luong_den_ho = (acc.luu_luong_den_ho || 0) + val.luu_luong_den_ho;
+            acc.tong_luu_luong_xa_thuc_te = (acc.tong_luu_luong_xa_thuc_te || 0) + val.tong_luu_luong_xa_thuc_te;
+            return acc;
+          }, {});
+          const count = group.values.length;
+          return {
+            'dd/mm/yy': group['dd/mm/yy'],
+            'dd': group['dd'],
+            'mm/yy': group['mm/yy'],
+            value: [
+              { name: 'Muc_nuoc_ho', value: (meanValues.muc_nuoc_ho / count).toFixed(2) },
+              { name: 'Luu_luong_den_ho', value: (meanValues.luu_luong_den_ho / count).toFixed(2) },
+              { name: 'Tong_luu_luong_xa_thuc_te', value: (meanValues.tong_luu_luong_xa_thuc_te / count).toFixed(2) }
+            ]
+          };
+        });
+
+        resolve(data);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(new Error('Lỗi khi đọc file CSV'));
+    reader.readAsText(file);
+  });
+}
 
   // Log message
   function logMessage(message, type, container = logMessages) {
@@ -595,11 +659,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Đóng overlay
   logCloseBtn.addEventListener('click', () => {
-    logOverlay.style.display = 'none';
+    resetLogOverlay();
   });
 
   calendarCloseBtn.addEventListener('click', () => {
-    calendarOverlay.style.display = 'none';
+    closeOverlay(calendarOverlay);
+    resetLogOverlay(); // Xóa log khi hủy
     selectedStartDate = null;
     selectedEndDate = null;
     const days = document.querySelectorAll('.calendar-day');
@@ -607,6 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   resultCloseBtn.addEventListener('click', () => {
-    resultOverlay.style.display = 'none';
+    closeOverlay(resultOverlay);
+    resetLogOverlay(); // Xóa log khi đóng kết quả
   });
 });

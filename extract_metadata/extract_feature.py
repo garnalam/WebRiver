@@ -14,5 +14,5 @@ def number_feature(fc_model, df):
 
     # Chuyển danh sách đặc trưng thành mảng numpy
     numeric_features_array = np.vstack(numeric_features_list)
-
+    
     return numeric_features_array
