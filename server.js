@@ -63,6 +63,7 @@ const Image = mongoose.model('Image', imageSchema);
 
 const metadataSchema = new mongoose.Schema({
   id_image: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'image' },
+  hh: { type: String, required: true, match: /^\d{2}:\d{2}:\d{2}$/ },
   dd: { type: String, required: true, match: /^\d{2}$/ },
   'mm/yy': { type: String, required: true, match: /^\d{2}\/\d{2}$/ },
   list_value: [{ name: { type: String, required: true }, value: { type: String, required: true } }]
@@ -427,7 +428,7 @@ app.post('/predict', async (req, res) => {
       throw new Error(`Lỗi khi lưu file tạm: ${error.message}`);
     }
 
-    const pythonScriptPath = 'C:/Users/AlarmTran/testbe/test.py';
+    const pythonScriptPath = path.join(__dirname, 'test.py');
     try {
       await fs.access(pythonScriptPath);
       console.log(`Tìm thấy test.py tại ${pythonScriptPath}`);
@@ -435,7 +436,7 @@ app.post('/predict', async (req, res) => {
       throw new Error(`File test.py không tồn tại tại ${pythonScriptPath}`);
     }
 
-    const pythonProcess = spawn('python', [
+    const pythonProcess = spawn('C:/Users/AlarmTran/anaconda3/envs/lab/python.exe', [
       pythonScriptPath,
       tempImagePath,
       tempMetadataPath,
@@ -506,9 +507,23 @@ app.post('/predict', async (req, res) => {
     }, { new: true });
     console.log(`Đã cập nhật mask cho image ${image_id}`);
 
-    res.status(200).json({ message: 'Dự đoán thành công', results: predictions });
+    res.status(200).json({ 
+      message: 'Dự đoán thành công', 
+      results: predictions,
+      mask_buffer: result.mask_buffer
+    });
   } catch (error) {
     console.error('Lỗi khi dự đoán:', error);
+    try {
+      await Promise.all([
+        fs.unlink(tempImagePath).catch(() => {}),
+        fs.unlink(tempMetadataPath).catch(() => {}),
+        fs.unlink(tempOutputPath).catch(() => {})
+      ]);
+      console.log('Đã xóa file tạm trong trường hợp lỗi');
+    } catch (cleanupError) {
+      console.warn('Cảnh báo: Không xóa được file tạm:', cleanupError.message);
+    }
     res.status(500).json({ message: 'Lỗi khi dự đoán', error: error.message });
   }
 });

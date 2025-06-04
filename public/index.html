@@ -9,7 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-900 text-gray-200 font-roboto min-h-screen flex flex-col items-center p-4 relative">  <!-- Container cho các hình khối động -->
+<body class="bg-gray-900 text-gray-200 font-roboto min-h-screen flex flex-col items-center p-4 relative overflow-hidden">
+  <!-- Container cho các hình khối động -->
   <div class="shapes-container">
     <div class="shape shape-1 w-16 h-16 bg-yellow-500 opacity-20 rounded-full absolute animate-float"></div>
     <div class="shape shape-2 w-12 h-12 bg-blue-400 opacity-20 rounded-lg absolute animate-float-delayed"></div>
@@ -74,97 +75,107 @@
   </div>
 
   <!-- Trang dự đoán -->
-  <div id="prediction-section" class="w-full max-w-4xl relative z-10 hidden">
-    <!-- Tabs -->
-    <div class="flex space-x-2 mb-6">
-      <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-t-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300 active" data-tab="predict">Dự Đoán</button>
-      <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-t-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300" data-tab="change-password">Đổi Mật Khẩu</button>
-      <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-t-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300" data-tab="history">Lịch Sử Dự Đoán</button>
-      <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-t-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300" data-tab="logout">Đăng Xuất</button>
-    </div>
-
-    <!-- Tab Dự đoán -->
-    <div id="predict-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30">
-      <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Nhập Dữ Liệu Dự Đoán</h2>
-      <div id="log-messages"></div>
-      <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium">Ảnh (RGB):</label>
-        <input id="image-input" type="file" accept="image/*" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
-        <img id="image-preview" class="mt-2 rounded-lg hidden mx-auto" style="max-width: 150px;" alt="Ảnh xem trước">
-      </div>
-      <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium">File CSV (Metadata):</label>
-        <input id="csv-input" type="file" accept=".csv" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
-      </div>
-      <div class="mb-6">
-        <label class="block mb-2 text-sm font-medium">Tháng/Năm của Ảnh (mm/yy):</label>
-        <input id="mmyy-input" type="text" placeholder="mm/yy" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
-      </div>
-      <div class="text-center">
-        <button id="predict-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Dự Đoán</button>
-        <a id="download-sample-csv" class="inline-block px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg hover:bg-yellow-400 transition-all duration-300 ml-2">Tải File CSV Mẫu</a>
+  <div id="prediction-section" class="w-full flex relative z-10 hidden">
+    <!-- Hướng dẫn sử dụng (bên trái) -->
+    <div id="instructions-section" class="w-1/3 pr-4">
+      <div class="bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 h-full">
+        <h3 class="text-xl font-bold mb-4 text-center text-gray-100 font-['Playfair_Display']">Hướng Dẫn Sử Dụng</h3>
+        <div id="instructions-content" class="text-gray-300 space-y-2 text-sm">
+          <!-- Nội dung hướng dẫn sẽ được cập nhật động -->
+        </div>
       </div>
     </div>
 
-    <!-- Tab Đổi mật khẩu -->
-    <div id="change-password-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 hidden">
-      <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Đổi Mật Khẩu</h2>
-      <div id="change-password-messages"></div>
-      <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium">Mật khẩu cũ:</label>
-        <input id="old-password" type="password" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+    <!-- Nội dung chính (bên phải) -->
+    <div id="main-content" class="w-2/3 flex flex-col">
+      <!-- Thanh tabs (phía trên cùng) -->
+      <div class="flex justify-end space-x-2 mb-4">
+        <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300 active" data-tab="predict">Dự Đoán</button>
+        <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300" data-tab="change-password">Đổi Mật Khẩu</button>
+        <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300" data-tab="history">Lịch Sử Dự Đoán</button>
+        <button class="tab bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500 hover:to-blue-400 hover:text-gray-900 transition-all duration-300" data-tab="logout">Đăng Xuất</button>
       </div>
-      <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium">Mật khẩu mới:</label>
-        <input id="new-password" type="password" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
-      </div>
-      <div class="mb-6">
-        <label class="block mb-2 text-sm font-medium">Xác nhận mật khẩu mới:</label>
-        <input id="confirm-password" type="password" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
-      </div>
-      <div class="text-center">
-        <button id="change-password-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Đổi Mật Khẩu</button>
-      </div>
-    </div>
 
-    <!-- Tab Lịch sử dự đoán -->
-    <div id="history-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 hidden">
-      <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Lịch Sử Dự Đoán</h2>
-      <div id="history-messages"></div>
-      <table class="history-table w-full text-left">
-        <thead>
-          <tr class="bg-gray-700">
-            <th class="p-2 border border-yellow-500 border-opacity-30">Ngày Dự Đoán</th>
-            <th class="p-2 border border-yellow-500 border-opacity-30">ID Ảnh</th>
-            <th class="p-2 border border-yellow-500 border-opacity-30">Số Ngày Dự Đoán</th>
-            <th class="p-2 border border-yellow-500 border-opacity-30">Hành Động</th>
-          </tr>
-        </thead>
-        <tbody id="history-table-body"></tbody>
-      </table>
-    </div>
-
-    <!-- Tab Đăng xuất -->
-    <div id="logout-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 hidden">
-      <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Đăng Xuất</h2>
-      <div class="text-center">
-        <button id="logout-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Đăng Xuất</button>
+      <!-- Tab Dự đoán -->
+      <div id="predict-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Nhập Dữ Liệu Dự Đoán</h2>
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex-1 mr-4">
+            <label class="block mb-2 text-sm font-medium">Ảnh (RGB):</label>
+            <input id="image-input" type="file" accept="image/*" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+          </div>
+          <div class="flex-1 mr-4">
+            <label class="block mb-2 text-sm font-medium">File CSV (Metadata):</label>
+            <input id="csv-input" type="file" accept=".csv" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+          </div>
+          <div class="flex-1">
+            <label class="block mb-2 text-sm font-medium">Tháng/Năm (mm/yy):</label>
+            <input id="mmyy-input" type="text" placeholder="mm/yy" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+          </div>
+        </div>
+        <div class="text-center">
+          <button id="predict-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Dự Đoán</button>
+          <a id="download-sample-csv" class="inline-block px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg hover:bg-yellow-400 transition-all duration-300 ml-2">Tải File CSV Mẫu</a>
+        </div>
       </div>
-    </div>
 
-    <!-- Hướng dẫn sử dụng -->
-    <div class="mt-8">
-      <h3 class="text-xl font-bold mb-4 text-center text-gray-100 font-['Playfair_Display']">Hướng Dẫn Sử Dụng</h3>
-      <div class="bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 max-h-64 overflow-y-auto">
-        <h4 class="text-lg font-semibold text-yellow-400 mb-2">Các bước sử dụng:</h4>
-        <ol class="list-decimal list-inside text-gray-300 space-y-2 text-sm">
-          <li>Chọn một ảnh (định dạng RGB).</li>
-          <li>Chọn file CSV chứa metadata (xem file mẫu).</li>
-          <li>Nhập tháng/năm của ảnh (mm/yy).</li>
-          <li>Nhấn "Dự Đoán" để bắt đầu.</li>
-          <li>Xem log, chọn ngày dự đoán từ lịch.</li>
-          <li>Xem kết quả và tải CSV nếu cần.</li>
-        </ol>
+      <!-- Tab Đổi mật khẩu -->
+      <div id="change-password-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 hidden">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Đổi Mật Khẩu</h2>
+        <div id="change-password-messages"></div>
+        <div class="mb-4">
+          <label class="block mb-2 text-sm font-medium">Mật khẩu cũ:</label>
+          <input id="old-password" type="password" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+        </div>
+        <div class="mb-4">
+          <label class="block mb-2 text-sm font-medium">Mật khẩu mới:</label>
+          <input id="new-password" type="password" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+        </div>
+        <div class="mb-6">
+          <label class="block mb-2 text-sm font-medium">Xác nhận mật khẩu mới:</label>
+          <input id="confirm-password" type="password" class="w-full p-2 bg-gray-700 border border-yellow-500 border-opacity-30 rounded-lg text-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:bg-gray-600">
+        </div>
+        <div class="text-center">
+          <button id="change-password-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Đổi Mật Khẩu</button>
+        </div>
+      </div>
+
+      <!-- Tab Lịch sử dự đoán -->
+      <div id="history-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 hidden">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Lịch Sử Dự Đoán</h2>
+        <div id="history-messages"></div>
+        <table class="history-table w-full text-left">
+          <thead>
+            <tr class="bg-gray-700">
+              <th class="p-2 border border-yellow-500 border-opacity-30">Ngày Dự Đoán</th>
+              <th class="p-2 border border-yellow-500 border-opacity-30">ID Ảnh</th>
+              <th class="p-2 border border-yellow-500 border-opacity-30">Số Ngày Dự Đoán</th>
+              <th class="p-2 border border-yellow-500 border-opacity-30">Hành Động</th>
+            </tr>
+          </thead>
+          <tbody id="history-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Tab Đăng xuất -->
+      <div id="logout-tab" class="tab-content bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 hidden">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-100 font-['Playfair_Display']">Đăng Xuất</h2>
+        <div class="text-center">
+          <button id="logout-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Đăng Xuất</button>
+        </div>
+      </div>
+
+      <!-- Lịch 30 ngày hoặc bảng kết quả (dưới box dự đoán) -->
+      <div id="calendar-display-section" class="mt-6">
+        <div class="flex justify-between">
+          <div class="w-1/2 pr-2">
+            <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Ảnh Gốc</h3>
+            <img id="original-image" class="w-full h-64 object-cover rounded-lg" alt="Ảnh gốc">
+          </div>
+          <div id="calendar-or-result" class="w-1/2 pl-2">
+            <!-- Lịch hoặc bảng kết quả sẽ được thêm động -->
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -178,37 +189,12 @@
     </div>
   </div>
 
-  <!-- Overlay cho lịch chọn ngày -->
-  <div id="calendar-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 hidden">
-    <div class="bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 w-11/12 max-w-lg max-h-[80vh] overflow-y-auto relative">
-      <button id="calendar-close" class="absolute top-3 right-3 text-yellow-400 text-2xl hover:text-blue-400 transition-colors">✕</button>
-      <h3 class="text-xl font-bold mb-4 text-gray-100 font-['Playfair_Display']">Chọn Khoảng Ngày Dự Đoán</h3>
-      <div id="calendar-grid" class="mb-4 grid grid-cols-7 gap-2"></div>
-      <div class="flex space-x-2 justify-center">
-        <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Overlay cho thanh tiến trình -->
   <div id="progress-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 hidden">
     <div class="bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 w-11/12 max-w-lg">
       <h3 class="text-xl font-bold mb-4 text-gray-100 font-['Playfair_Display']">Tiến Trình Dự Đoán</h3>
       <div class="w-full bg-gray-300 rounded-lg">
         <div id="progress-bar" class="h-5 bg-gradient-to-r from-yellow-500 to-blue-400 rounded-lg transition-all duration-300"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Overlay cho kết quả dự đoán -->
-  <div id="result-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 hidden">
-    <div class="bg-gray-800 bg-opacity-90 rounded-xl p-6 shadow-2xl border border-yellow-500 border-opacity-30 w-11/12 max-w-lg max-h-[80vh] overflow-y-auto relative">
-      <button id="result-close" class="absolute top-3 right-3 text-yellow-400 text-2xl hover:text-blue-400 transition-colors">✕</button>
-      <h3 class="text-xl font-bold mb-4 text-gray-100 font-['Playfair_Display']">Kết Quả Dự Đoán</h3>
-      <div id="calendar-grid-result" class="mb-4 grid grid-cols-7 gap-2"></div>
-      <div id="result-details" class="text-gray-300"></div>
-      <div class="text-center mt-4">
-        <button id="download-result-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Tải Kết Quả (.csv)</button>
       </div>
     </div>
   </div>
