@@ -34,16 +34,9 @@ def to_three_channel(mask):
     mask_rgb = np.stack([mask, mask, mask], axis=-1)
     return mask_rgb
 
+# Trong test.py
+# Trong test.py
 def run_prediction(image_path, metadata_path, output_path):
-    """
-    Run prediction with image and metadata from files.
-    Args:
-        image_path (str): Path to image file.
-        metadata_path (str): Path to metadata JSON file (contains metadata, prediction_dates, mmyy).
-        output_path (str): Path to save output JSON.
-    Returns:
-        dict: {predictions: [[date, water_estimate], ...], mask_buffer: str (base64)}
-    """
     try:
         # Đọc ảnh
         image = cv2.imread(image_path)
@@ -88,8 +81,8 @@ def run_prediction(image_path, metadata_path, output_path):
         # Xử lý metadata
         data = []
         for record in metadata_records:
-            # Tạo thoi_gian đúng định dạng YYYY-MM-DD HH:mm:ss
-            date_str = f"20{record['mm/yy'].split('/')[1]}-{record['mm/yy'].split('/')[0]}-{record['dd']} {record['hh']}"
+            # Tạo thoi_gian đúng định dạng YYYY-MM-DD
+            date_str = f"20{record['mm/yy'].split('/')[1]}-{record['mm/yy'].split('/')[0]}-{record['dd']}"
             values = {item['name']: float(item['value']) for item in record['list_value']}
             values['thoi_gian'] = date_str
             data.append(values)
@@ -99,7 +92,7 @@ def run_prediction(image_path, metadata_path, output_path):
         if 'thoi_gian' not in df.columns:
             raise ValueError("Column 'thoi_gian' missing in DataFrame")
 
-        # Ánh xạ sang tên cột mong đợi trong time_series.py
+        # Ánh xạ sang tên cột mong đợi
         df = df.rename(columns={
             'Muc_nuoc_ho': 'Mực nước hồ (m)',
             'Luu_luong_den_ho': 'Lưu lượng đến hồ (m³/s)',
@@ -111,10 +104,10 @@ def run_prediction(image_path, metadata_path, output_path):
             missing_cols = [col for col in required_cols if col not in df.columns]
             raise ValueError(f"Missing required columns in metadata: {missing_cols}")
 
-        # Xử lý chuỗi thời gian
+        # Xử lý chuỗi thời gian (dùng number_time_series từ time_series.py)
         data_df = number_time_series(df)
 
-        # Trích xuất đặc trưng số
+        # Trích xuất đặc trưng số (dùng number_feature từ extract_features.py)
         fc_model = build_FC_model()
         numeric_features_array = number_feature(fc_model, data_df)
         numeric_features_df = pd.DataFrame(
@@ -124,7 +117,7 @@ def run_prediction(image_path, metadata_path, output_path):
         )
 
         # Kết hợp đặc trưng
-        combined_df = combine_features(image_features_df, numeric_features_df)  # Sửa img_features_df thành image_features_df
+        combined_df = combine_features(image_features_df, numeric_features_df)
 
         # Tạo chuỗi
         time_steps = 4

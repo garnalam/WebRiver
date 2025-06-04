@@ -63,7 +63,6 @@ const Image = mongoose.model('Image', imageSchema);
 
 const metadataSchema = new mongoose.Schema({
   id_image: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'image' },
-  hh: { type: String, required: true, match: /^\d{2}:\d{2}:\d{2}$/ },
   dd: { type: String, required: true, match: /^\d{2}$/ },
   'mm/yy': { type: String, required: true, match: /^\d{2}\/\d{2}$/ },
   list_value: [{ name: { type: String, required: true }, value: { type: String, required: true } }]
