@@ -1,1 +1,2 @@
-# HTMC_ICTA_2025_EAI_Application
+Cài NodeJS rồi node server.js rồi enter là chạy thôi 
+hẹ hẹ hẹ
