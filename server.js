@@ -436,7 +436,7 @@ app.post('/predict', async (req, res) => {
       throw new Error(`File test.py không tồn tại tại ${pythonScriptPath}`);
     }
 
-    const pythonProcess = spawn('C:/Users/AlarmTran/anaconda3/envs/lab/python.exe', [
+    const pythonProcess = spawn('python', [
       pythonScriptPath,
       tempImagePath,
       tempMetadataPath,
@@ -657,7 +657,7 @@ app.get('/get-image-records', requireAdminAuth, async (req, res) => {
     res.status(200).json({ message: 'Lấy danh sách ảnh thành công', records });
   } catch (error) {
     console.error('Lỗi khi lấy danh sách ảnh:', error);
-    res.status(500).json({ message: 'Lỗi khi lấy danh sách ảnh', error: error.message });
+    res.status(500).json({ message: 'Lấy danh sách ảnh thành công', records });
   }
 });
 
