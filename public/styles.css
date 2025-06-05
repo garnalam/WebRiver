@@ -166,3 +166,73 @@ body {
   display: grid;
   gap: 0.5rem; /* gap-2 tương ứng 8px */
 }
+/* Wrapper cho lịch */
+.calendar-wrapper {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Header chứa tiêu đề tháng và nút điều hướng */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+/* Nút điều hướng (mũi tên trái/phải) */
+.calendar-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.calendar-nav-btn.hidden {
+  visibility: hidden;
+}
+
+/* Tiêu đề tháng */
+#month-title {
+  font-size: 1rem; /* text-md */
+  font-weight: 600; /* font-semibold */
+  color: #f7fafc; /* text-gray-100 */
+}
+
+/* Định dạng ô ngày */
+.calendar-day {
+  min-width: 3rem; /* w-12 tương ứng 48px */
+  min-height: 3rem; /* h-12 tương ứng 48px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(234, 179, 8, 0.3); /* border-yellow-500 border-opacity-30 */
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 0.3s;
+  font-size: 0.875rem; /* text-sm */
+}
+
+.calendar-day:hover {
+  background-color: #4a5568; /* hover:bg-gray-700 */
+}
+
+.calendar-day.bg-gray-700 {
+  background-color: #4a5568; /* bg-gray-700 */
+  color: #ecc94b; /* text-yellow-400 */
+}
+
+.calendar-day.selected {
+  background-color: #ecc94b; /* Màu vàng khi chọn */
+  color: #1a202c; /* Màu xám tối */
+}
+
+/* Grid hiển thị ngày */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem; /* gap-2 tương ứng 8px */
+}

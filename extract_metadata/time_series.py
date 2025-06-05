@@ -1,15 +1,20 @@
 import pandas as pd
 
-
 def number_time_series(df):
-    # Feature engineering
+
+    # Chuyển cột thoi_gian thành datetime
     df['thoi_gian'] = pd.to_datetime(df['thoi_gian'])
-    df.set_index('thoi_gian', inplace=True)
+    
+    # Sắp xếp theo thời gian
+    df = df.sort_values('thoi_gian')
+    
+    # Đặt thoi_gian làm chỉ số
+    df = df.set_index('thoi_gian')
 
-    # Giữ lại các cột dữ liệu cần thiết
-    df = df[['Mực nước hồ (m)', 'Tổng lưu lượng xả (m³/s)[Thực tế]', 'Lưu lượng đến hồ (m³/s)']].resample('D').mean()
+    # Tạo cột month_year từ chỉ số
+    df['month_year'] = df.index.map(lambda x: x.strftime('%Y-%m'))
 
-    # Tạo cột 'month_year' để nhóm dữ liệu theo từng tháng
-    df['month_year'] = df.index.to_period('D')
+    required_cols = ['Mực nước hồ (m)', 'Lưu lượng đến hồ (m³/s)', 'Tổng lưu lượng xả (m³/s)[Thực tế]']
+    df[required_cols] = df[required_cols].ffill()
 
     return df

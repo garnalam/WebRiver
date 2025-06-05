@@ -455,28 +455,134 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Hiển thị lịch 30 ngày để chọn ngày dự đoán
-  function displayCalendar(lastDate) {
-      calendarOrResult.innerHTML = `
-          <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Chọn Ngày Dự Đoán</h3>
-          <div id="calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
-          <div class="text-center">
-            <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
-          </div>
-        `;
+function displayCalendar(lastDate) {
+    calendarOrResult.innerHTML = `
+      <div class="calendar-wrapper">
+        <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Chọn Ngày Dự Đoán</h3>
+        <div class="calendar-header flex items-center justify-between mb-2">
+          <button id="prev-month-btn" class="calendar-nav-btn hidden text-gray-100 hover:text-yellow-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+          <h4 id="month-title" class="text-md font-semibold text-gray-100"></h4>
+          <button id="next-month-btn" class="calendar-nav-btn hidden text-gray-100 hover:text-yellow-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
+        <div class="text-center">
+          <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
+        </div>
+      </div>
+    `;
 
-      const calendarGrid = document.getElementById('calendar-grid');
-      const confirmDatesBtn = document.getElementById('confirm-dates-btn');
+    const calendarGrid = document.getElementById('calendar-grid');
+    const confirmDatesBtn = document.getElementById('confirm-dates-btn');
+    const monthTitle = document.getElementById('month-title');
+    const prevMonthBtn = document.getElementById('prev-month-btn');
+    const nextMonthBtn = document.getElementById('next-month-btn');
 
-      const startDate = lastDate.clone().add(1, 'day'); // Bắt đầu từ ngày sau ngày cuối cùng trong CSV
-      for (let i = 0; i < 30; i++) {
-        const date = startDate.clone().add(i, 'day');
-        const dayDiv = document.createElement('div');
-        // Cập nhật class để đảm bảo kích thước và tránh tràn chữ
-        dayDiv.className = 'calendar-day w-16 h-12 flex items-center justify-center border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700 text-sm overflow-hidden';
-        dayDiv.dataset.date = date.format('DD/MM/YY');
-        dayDiv.textContent = date.format('DD/MM/YY');
-        calendarGrid.appendChild(dayDiv);
+    const startDate = lastDate.clone().add(1, 'day');
+    const allDates = Array.from({ length: 30 }, (_, i) => startDate.clone().add(i, 'day'));
+
+    // Log danh sách ngày để debug
+    console.log('All Dates:', allDates.map(date => date.format('DD/MM/YY')));
+
+    // Chia danh sách ngày thành các trang tháng
+    const months = [];
+    let currentMonthYear = null;
+    let monthDates = [];
+
+    allDates.forEach(date => {
+      const monthYear = date.format('MM/YYYY');
+      if (currentMonthYear !== monthYear) {
+        if (monthDates.length > 0) {
+          months.push({ monthYear: currentMonthYear, dates: [...monthDates] });
+        }
+        currentMonthYear = monthYear;
+        monthDates = [];
       }
+      monthDates.push(date);
+    });
+    if (monthDates.length > 0) {
+      months.push({ monthYear: currentMonthYear, dates: [...monthDates] });
+    }
+
+    // Log các tháng để debug
+    console.log('Months:', months.map(m => ({
+      monthYear: m.monthYear,
+      dates: m.dates.map(d => d.format('DD/MM/YY'))
+    })));
+
+    let currentPage = 0;
+
+    function renderCalendar(page) {
+      const { monthYear, dates } = months[page];
+      const [month, year] = monthYear.split('/');
+      monthTitle.textContent = `Tháng ${parseInt(month)}, năm ${year}`;
+
+      // Ẩn/hiện nút điều hướng
+      prevMonthBtn.classList.toggle('hidden', page === 0);
+      nextMonthBtn.classList.toggle('hidden', page === months.length - 1);
+
+      calendarGrid.innerHTML = '';
+
+      // Căn chỉnh dựa trên ngày đầu tiên của danh sách ngày
+      const firstDate = dates[0];
+      const firstDayOfWeek = firstDate.day(); // 0 (Chủ nhật) đến 6 (Thứ bảy)
+
+      // Thêm các ô trống trước ngày đầu tiên
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'w-12 h-12';
+        calendarGrid.appendChild(emptyDiv);
+      }
+
+      // Thêm các ngày
+      dates.forEach(date => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day w-12 h-12 flex items-center justify-center border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700 text-sm overflow-hidden';
+        dayDiv.dataset.date = date.format('DD/MM/YY');
+        dayDiv.textContent = date.date();
+        calendarGrid.appendChild(dayDiv);
+      });
+
+      // Tính tổng số ô đã thêm (ô trống + ô ngày)
+      const totalCells = firstDayOfWeek + dates.length;
+      const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+
+      // Thêm ô trống ở cuối nếu cần để hoàn thành hàng
+      for (let i = 0; i < remainingCells; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'w-12 h-12';
+        calendarGrid.appendChild(emptyDiv);
+      }
+    }
+
+    // Hiển thị trang đầu tiên
+    if (months.length > 0) {
+      renderCalendar(currentPage);
+    } else {
+      calendarGrid.innerHTML = '<p class="text-center text-gray-100">Không có dữ liệu để hiển thị.</p>';
+    }
+
+    // Sự kiện chuyển trang
+    prevMonthBtn.addEventListener('click', () => {
+      if (currentPage > 0) {
+        currentPage--;
+        renderCalendar(currentPage);
+      }
+    });
+
+    nextMonthBtn.addEventListener('click', () => {
+      if (currentPage < months.length - 1) {
+        currentPage++;
+        renderCalendar(currentPage);
+      }
+    });
 
     calendarGrid.addEventListener('click', handleCalendarClick);
 
@@ -501,6 +607,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentDate.add(1, 'day');
       }
 
+      // Log predictionDates để debug
+      console.log('Selected Prediction Dates:', predictionDates);
+
       progressOverlay.style.display = 'flex';
       progressBar.style.width = '0%';
 
@@ -516,7 +625,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       async function performPrediction() {
         try {
-          // Không hiển thị logOverlay trong quá trình dự đoán
           const response = await fetch('http://localhost:5000/predict', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -559,46 +667,147 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
-  }
+}
 
   // Hiển thị kết quả dưới dạng lịch
   function displayResults() {
     calendarOrResult.innerHTML = `
-      <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Kết Quả Dự Đoán</h3>
-      <div id="result-calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
-      <div id="prediction-detail" class="text-center text-gray-100 mb-4"></div>
-      <div class="text-center mt-4">
-        <button id="download-result-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300 mr-2">Tải Về (.csv)</button>
-        <button id="refresh-btn" class="bg-gradient-to-r from-gray-500 to-gray-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Làm Mới</button>
+      <div class="calendar-wrapper">
+        <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Kết Quả Dự Đoán</h3>
+        <div class="calendar-header flex items-center justify-between mb-2">
+          <button id="prev-month-btn" class="calendar-nav-btn hidden text-gray-100 hover:text-yellow-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+          <h4 id="month-title" class="text-md font-semibold text-gray-100"></h4>
+          <button id="next-month-btn" class="calendar-nav-btn hidden text-gray-100 hover:text-yellow-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="result-calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
+        <div id="prediction-detail" class="text-center text-gray-100 mb-4"></div>
+        <div class="text-center mt-4">
+          <button id="download-result-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300 mr-2">Tải Về (.csv)</button>
+          <button id="refresh-btn" class="bg-gradient-to-r from-gray-500 to-gray-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Làm Mới</button>
+        </div>
       </div>
     `;
 
     const resultCalendarGrid = document.getElementById('result-calendar-grid');
     const predictionDetail = document.getElementById('prediction-detail');
+    const monthTitle = document.getElementById('month-title');
+    const prevMonthBtn = document.getElementById('prev-month-btn');
+    const nextMonthBtn = document.getElementById('next-month-btn');
 
-    // Hiển thị lịch với các ngày đã dự đoán
-    const startDate = moment(predictionDates[0], 'DD/MM/YY');
-    const endDate = moment(predictionDates[predictionDates.length - 1], 'DD/MM/YY');
-    const totalDays = endDate.diff(startDate, 'days') + 1;
+    // Sắp xếp predictionDates để đảm bảo thứ tự đúng
+    const allDates = predictionDates
+      .map(date => moment(date, 'DD/MM/YY'))
+      .sort((a, b) => a.isBefore(b) ? -1 : 1);
 
-    for (let i = 0; i < totalDays; i++) {
-      const date = startDate.clone().add(i, 'day');
-      const dateStr = date.format('DD/MM/YY');
-      const dayDiv = document.createElement('div');
-      // Cập nhật class để đảm bảo kích thước và tránh tràn chữ
-      dayDiv.className = 'calendar-day w-16 h-12 flex items-center justify-center border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700 text-sm overflow-hidden';
-      dayDiv.dataset.date = dateStr;
-      dayDiv.textContent = dateStr;
+    // Log danh sách ngày để debug
+    console.log('Prediction Dates:', allDates.map(date => date.format('DD/MM/YY')));
 
-      // Nếu ngày này nằm trong predictionDates, tô màu để phân biệt
-      if (predictionDates.includes(dateStr)) {
-        dayDiv.classList.add('bg-gray-700');
+    // Chia danh sách ngày thành các trang tháng
+    const months = [];
+    let currentMonthYear = null;
+    let monthDates = [];
+
+    allDates.forEach(date => {
+      const monthYear = date.format('MM/YYYY');
+      // Kiểm tra nếu thay đổi tháng/năm
+      if (currentMonthYear !== monthYear) {
+        if (monthDates.length > 0) {
+          months.push({ monthYear: currentMonthYear, dates: [...monthDates] });
+        }
+        currentMonthYear = monthYear;
+        monthDates = [];
       }
-
-      resultCalendarGrid.appendChild(dayDiv);
+      monthDates.push(date);
+    });
+    // Đẩy tháng cuối cùng vào danh sách
+    if (monthDates.length > 0) {
+      months.push({ monthYear: currentMonthYear, dates: [...monthDates] });
     }
 
-    // Logic sự kiện giữ nguyên
+    // Log các tháng để debug
+    console.log('Months:', months.map(m => ({
+      monthYear: m.monthYear,
+      dates: m.dates.map(d => d.format('DD/MM/YY'))
+    })));
+
+    let currentPage = 0;
+
+    function renderResultsCalendar(page) {
+      const { monthYear, dates } = months[page];
+      const [month, year] = monthYear.split('/');
+      monthTitle.textContent = `Tháng ${parseInt(month)}, năm ${year}`;
+
+      // Ẩn/hiện nút điều hướng
+      prevMonthBtn.classList.toggle('hidden', page === 0);
+      nextMonthBtn.classList.toggle('hidden', page === months.length - 1);
+
+      resultCalendarGrid.innerHTML = '';
+
+      // Căn chỉnh dựa trên ngày đầu tiên của danh sách ngày
+      const firstDate = dates[0];
+      const firstDayOfWeek = firstDate.day(); // 0 (Chủ nhật) đến 6 (Thứ bảy)
+
+      // Thêm các ô trống trước ngày đầu tiên
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'w-12 h-12';
+        resultCalendarGrid.appendChild(emptyDiv);
+      }
+
+      // Thêm các ngày
+      dates.forEach(date => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day w-12 h-12 flex items-center justify-center border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700 text-sm overflow-hidden';
+        dayDiv.dataset.date = date.format('DD/MM/YY');
+        dayDiv.textContent = date.date();
+        if (predictionDates.includes(date.format('DD/MM/YY'))) {
+          dayDiv.classList.add('bg-gray-700');
+        }
+        resultCalendarGrid.appendChild(dayDiv);
+      });
+
+      // Tính tổng số ô đã thêm (ô trống + ô ngày)
+      const totalCells = firstDayOfWeek + dates.length;
+      const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+
+      // Thêm ô trống ở cuối nếu cần để hoàn thành hàng
+      for (let i = 0; i < remainingCells; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'w-12 h-12';
+        resultCalendarGrid.appendChild(emptyDiv);
+      }
+    }
+
+    // Hiển thị trang đầu tiên
+    if (months.length > 0) {
+      renderResultsCalendar(currentPage);
+    } else {
+      resultCalendarGrid.innerHTML = '<p class="text-center text-gray-100">Không có dữ liệu để hiển thị.</p>';
+    }
+
+    // Sự kiện chuyển trang
+    prevMonthBtn.addEventListener('click', () => {
+      if (currentPage > 0) {
+        currentPage--;
+        renderResultsCalendar(currentPage);
+      }
+    });
+
+    nextMonthBtn.addEventListener('click', () => {
+      if (currentPage < months.length - 1) {
+        currentPage++;
+        renderResultsCalendar(currentPage);
+      }
+    });
+
     resultCalendarGrid.addEventListener('click', (e) => {
       if (e.target.classList.contains('calendar-day')) {
         const selectedDate = e.target.dataset.date;
@@ -628,7 +837,6 @@ document.addEventListener('DOMContentLoaded', () => {
       resetCalendarOrResult();
     });
 }
-
   // Reset form
   function resetForm() {
     imageInput.value = '';
