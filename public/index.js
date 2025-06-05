@@ -456,26 +456,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hiển thị lịch 30 ngày để chọn ngày dự đoán
   function displayCalendar(lastDate) {
-    calendarOrResult.innerHTML = `
-      <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Chọn Ngày Dự Đoán</h3>
-      <div id="calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
-      <div class="text-center">
-        <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
-      </div>
-    `;
+      calendarOrResult.innerHTML = `
+          <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Chọn Ngày Dự Đoán</h3>
+          <div id="calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
+          <div class="text-center">
+            <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
+          </div>
+        `;
 
-    const calendarGrid = document.getElementById('calendar-grid');
-    const confirmDatesBtn = document.getElementById('confirm-dates-btn');
+      const calendarGrid = document.getElementById('calendar-grid');
+      const confirmDatesBtn = document.getElementById('confirm-dates-btn');
 
-    const startDate = lastDate.clone().add(1, 'day'); // Bắt đầu từ ngày sau ngày cuối cùng trong CSV
-    for (let i = 0; i < 30; i++) {
-      const date = startDate.clone().add(i, 'day');
-      const dayDiv = document.createElement('div');
-      dayDiv.className = 'calendar-day p-2 border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700';
-      dayDiv.dataset.date = date.format('DD/MM/YY');
-      dayDiv.textContent = date.format('DD/MM/YY');
-      calendarGrid.appendChild(dayDiv);
-    }
+      const startDate = lastDate.clone().add(1, 'day'); // Bắt đầu từ ngày sau ngày cuối cùng trong CSV
+      for (let i = 0; i < 30; i++) {
+        const date = startDate.clone().add(i, 'day');
+        const dayDiv = document.createElement('div');
+        // Cập nhật class để đảm bảo kích thước và tránh tràn chữ
+        dayDiv.className = 'calendar-day w-16 h-12 flex items-center justify-center border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700 text-sm overflow-hidden';
+        dayDiv.dataset.date = date.format('DD/MM/YY');
+        dayDiv.textContent = date.format('DD/MM/YY');
+        calendarGrid.appendChild(dayDiv);
+      }
 
     calendarGrid.addEventListener('click', handleCalendarClick);
 
@@ -584,7 +585,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const date = startDate.clone().add(i, 'day');
       const dateStr = date.format('DD/MM/YY');
       const dayDiv = document.createElement('div');
-      dayDiv.className = 'calendar-day p-2 border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700';
+      // Cập nhật class để đảm bảo kích thước và tránh tràn chữ
+      dayDiv.className = 'calendar-day w-16 h-12 flex items-center justify-center border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700 text-sm overflow-hidden';
       dayDiv.dataset.date = dateStr;
       dayDiv.textContent = dateStr;
 
@@ -596,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resultCalendarGrid.appendChild(dayDiv);
     }
 
-    // Thêm sự kiện nhấn vào ngày để hiển thị kết quả
+    // Logic sự kiện giữ nguyên
     resultCalendarGrid.addEventListener('click', (e) => {
       if (e.target.classList.contains('calendar-day')) {
         const selectedDate = e.target.dataset.date;
@@ -625,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resetForm();
       resetCalendarOrResult();
     });
-  }
+}
 
   // Reset form
   function resetForm() {
