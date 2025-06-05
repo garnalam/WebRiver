@@ -259,6 +259,75 @@ const requireAdminAuth = (req, res, next) => {
   next();
 };
 
+// Route kiểm tra ảnh có con sông hay không
+app.post('/check-image', upload.single('image'), async (req, res) => {
+  let tempImagePath, tempCheckOutputPath;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp file ảnh' });
+    }
+
+    const tempDir = os.tmpdir();
+    tempImagePath = path.join(tempDir, `temp_image_${Date.now()}.jpg`);
+    tempCheckOutputPath = path.join(tempDir, `temp_check_${Date.now()}.json`);
+
+    await fs.writeFile(tempImagePath, req.file.buffer);
+
+    const checkRiverScriptPath = path.join(__dirname, 'check_river.py');
+    try {
+      await fs.access(checkRiverScriptPath);
+      console.log(`Tìm thấy check_river.py tại ${checkRiverScriptPath}`);
+    } catch {
+      throw new Error(`File check_river.py không tồn tại tại ${checkRiverScriptPath}`);
+    }
+
+    const checkRiverProcess = spawn('python', [
+      checkRiverScriptPath,
+      tempImagePath,
+      tempCheckOutputPath
+    ]);
+
+    let checkStderrData = '';
+    checkRiverProcess.stderr.on('data', (data) => {
+      checkStderrData += data.toString();
+    });
+
+    await new Promise((resolve, reject) => {
+      checkRiverProcess.on('close', async (code) => {
+        if (code !== 0) {
+          console.error('Python stderr (check_river):', checkStderrData); // Đã có dòng này
+          reject(new Error(`Python process (check_river) exited with code ${code}: ${checkStderrData}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    let checkResult;
+    try {
+      const checkOutputData = await fs.readFile(tempCheckOutputPath, 'utf-8');
+      checkResult = JSON.parse(checkOutputData);
+      console.log('Check river output:', checkResult);
+    } catch (error) {
+      throw new Error(`Lỗi khi đọc kết quả kiểm tra: ${error.message}`);
+    }
+
+    await fs.unlink(tempImagePath).catch(() => {});
+    await fs.unlink(tempCheckOutputPath).catch(() => {});
+
+    res.status(200).json(checkResult);
+  } catch (error) {
+    console.error('Lỗi khi kiểm tra ảnh:', error);
+    try {
+      if (tempImagePath) await fs.unlink(tempImagePath).catch(() => {});
+      if (tempCheckOutputPath) await fs.unlink(tempCheckOutputPath).catch(() => {});
+    } catch (cleanupError) {
+      console.warn('Cảnh báo: Không xóa được file tạm:', cleanupError.message);
+    }
+    res.status(500).json({ message: 'Lỗi khi kiểm tra ảnh', error: error.message });
+  }
+});
+
 // Route lưu ảnh và metadata
 app.post('/save-data', upload.single('image'), async (req, res) => {
   const session = await mongoose.startSession();
@@ -374,25 +443,28 @@ app.post('/save-data', upload.single('image'), async (req, res) => {
 
 // Route dự đoán
 app.post('/predict', async (req, res) => {
+  let tempImagePath, tempMetadataPath, tempOutputPath;
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { prediction_dates, image_id, metadata_ids, mmyy } = req.body;
     if (!Array.isArray(prediction_dates) || prediction_dates.length === 0) {
-      return res.status(400).json({ message: 'Danh sách ngày dự đoán không hợp lệ' });
+      throw new Error('Danh sách ngày dự đoán không hợp lệ');
     }
     if (!image_id || !Array.isArray(metadata_ids) || metadata_ids.length === 0) {
-      return res.status(400).json({ message: 'image_id hoặc metadata_ids không hợp lệ' });
+      throw new Error('image_id hoặc metadata_ids không hợp lệ');
     }
     if (!mmyy || !mmyy.match(/^\d{2}\/\d{2}$/)) {
-      return res.status(400).json({ message: 'mmyy không hợp lệ (ví dụ: 07/23)' });
+      throw new Error('mmyy không hợp lệ (ví dụ: 07/23)');
     }
 
     const image = await Image.findById(image_id);
     if (!image) {
-      return res.status(404).json({ message: 'Không tìm thấy ảnh' });
+      throw new Error('Không tìm thấy ảnh');
     }
     const file = await conn.db.collection('fs.files').findOne({ _id: new mongoose.Types.ObjectId(image.id_file) });
     if (!file) {
-      return res.status(404).json({ message: 'Không tìm thấy file ảnh' });
+      throw new Error('Không tìm thấy file ảnh');
     }
 
     let image_buffer = Buffer.from('');
@@ -408,13 +480,13 @@ app.post('/predict', async (req, res) => {
 
     const metadata_records = await Metadata.find({ _id: { $in: metadata_ids.map(id => new mongoose.Types.ObjectId(id)) } }).lean();
     if (metadata_records.length !== metadata_ids.length) {
-      return res.status(404).json({ message: 'Không tìm thấy một số metadata' });
+      throw new Error('Không tìm thấy một số metadata');
     }
 
     const tempDir = os.tmpdir();
-    const tempImagePath = path.join(tempDir, `temp_image_${Date.now()}.jpg`);
-    const tempMetadataPath = path.join(tempDir, `temp_metadata_${Date.now()}.json`);
-    const tempOutputPath = path.join(tempDir, `temp_output_${Date.now()}.json`);
+    tempImagePath = path.join(tempDir, `temp_image_${Date.now()}.jpg`);
+    tempMetadataPath = path.join(tempDir, `temp_metadata_${Date.now()}.json`);
+    tempOutputPath = path.join(tempDir, `temp_output_${Date.now()}.json`);
 
     try {
       await fs.writeFile(tempImagePath, image_buffer);
@@ -487,7 +559,8 @@ app.post('/predict', async (req, res) => {
         mimeType: 'image/jpeg',
         type: 'mask',
         datetime: file.metadata.datetime
-      }
+      },
+      session
     });
 
     mask_uploadStream.write(mask_buffer);
@@ -504,8 +577,10 @@ app.post('/predict', async (req, res) => {
         id_mask: mask_id,
         id_file: mask_fileId
       }
-    }, { new: true });
+    }, { new: true, session });
     console.log(`Đã cập nhật mask cho image ${image_id}`);
+
+    await session.commitTransaction();
 
     res.status(200).json({ 
       message: 'Dự đoán thành công', 
@@ -513,18 +588,19 @@ app.post('/predict', async (req, res) => {
       mask_buffer: result.mask_buffer
     });
   } catch (error) {
+    await session.abortTransaction();
     console.error('Lỗi khi dự đoán:', error);
     try {
-      await Promise.all([
-        fs.unlink(tempImagePath).catch(() => {}),
-        fs.unlink(tempMetadataPath).catch(() => {}),
-        fs.unlink(tempOutputPath).catch(() => {})
-      ]);
+      if (tempImagePath) await fs.unlink(tempImagePath).catch(() => {});
+      if (tempMetadataPath) await fs.unlink(tempMetadataPath).catch(() => {});
+      if (tempOutputPath) await fs.unlink(tempOutputPath).catch(() => {});
       console.log('Đã xóa file tạm trong trường hợp lỗi');
     } catch (cleanupError) {
       console.warn('Cảnh báo: Không xóa được file tạm:', cleanupError.message);
     }
     res.status(500).json({ message: 'Lỗi khi dự đoán', error: error.message });
+  } finally {
+    session.endSession();
   }
 });
 

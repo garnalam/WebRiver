@@ -48,9 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <li>Chọn file CSV chứa metadata (xem file mẫu).</li>
         <li>Nhập tháng/năm của ảnh (mm/yy).</li>
         <li>Nhấn "Dự Đoán" để kiểm tra dữ liệu.</li>
-        <li>Chọn khoảng ngày dự đoán trên lịch bên phải.</li>
+        <li>Chọn khoảng ngày dự đoán trên lịch.</li>
         <li>Nhấn "Xác Nhận" để chạy dự đoán.</li>
-        <li>Xem kết quả trong bảng lịch.</li>
+        <li>Xem kết quả trên lịch, nhấn vào ngày để xem chi tiết.</li>
       </ol>
     `,
     'change-password': `
@@ -292,108 +292,141 @@ document.addEventListener('DOMContentLoaded', () => {
 
     logOverlay.style.display = 'flex';
 
-    if (!imageInput.files || imageInput.files.length === 0) {
-      logMessage('Lỗi: Vui lòng chọn một ảnh!', 'error');
-      return;
-    }
-    const imageFile = imageInput.files[0];
-    const imageMimeType = imageFile.type;
-    if (!imageMimeType || !imageMimeType.startsWith('image/')) {
-      logMessage('Lỗi: File không phải là ảnh hợp lệ!', 'error');
-      return;
-    }
-    logMessage('Ảnh hợp lệ.', 'success');
-
-    if (!csvInput.files || csvInput.files.length === 0) {
-      logMessage('Lỗi: Vui lòng chọn một file CSV!', 'error');
-      return;
-    }
-    const csvFile = csvInput.files[0];
     try {
-      csvData = await parseCSV(csvFile);
-      logMessage(`Đã đọc file CSV: ${csvData.length} bản ghi.`, 'success');
-      console.log('Dữ liệu CSV:', JSON.stringify(csvData, null, 2));
-    } catch (error) {
-      logMessage(`Lỗi khi đọc file CSV: ${error.message}`, 'error');
-      return;
-    }
-
-    if (csvData.length < 4) {
-      logMessage('Lỗi: File CSV phải có ít nhất 4 bản ghi!', 'error');
-      return;
-    }
-    logMessage('Số lượng bản ghi đủ (>= 4).', 'success');
-
-    if (!csvData.every(record => record['dd/mm/yy'] && record['hh'])) {
-      logMessage('Lỗi: Mỗi bản ghi phải có trường dd/mm/yy và hh!', 'error');
-      return;
-    }
-    logMessage('Tất cả bản ghi có trường dd/mm/yy và hh.', 'success');
-
-    if (!csvData.every(record => record.value && Array.isArray(record.value) && record.value.length === 3)) {
-      logMessage('Lỗi: Mỗi bản ghi phải có trường value chứa đúng 3 cặp name-value!', 'error');
-      return;
-    }
-    logMessage('Tất cả bản ghi có trường value hợp lệ.', 'success');
-
-    const mmyy = mmyyInput.value;
-    if (!mmyy.match(/^\d{2}\/\d{2}$/)) {
-      logMessage('Lỗi: Định dạng tháng/năm không hợp lệ. Sử dụng mm/yy (ví dụ: 07/23)!', 'error');
-      return;
-    }
-    logMessage('Tháng/năm của ảnh hợp lệ.', 'success');
-
-    const csvMMYYs = csvData.map(record => record['mm/yy']);
-    if (!csvMMYYs.every(csvMMYY => csvMMYY === mmyy)) {
-      logMessage('Lỗi: Tháng/năm của ảnh không khớp với CSV!', 'error');
-      return;
-    }
-    logMessage('Tháng/năm khớp với CSV.', 'success');
-
-    const dates = csvData.map(record => moment(`${record['dd/mm/yy']} ${record['hh']}`, 'DD/MM/YY HH:mm:ss'));
-    for (let i = 1; i < dates.length; i++) {
-      if (!dates[i].isSame(dates[i - 1].clone().add(1, 'hour'))) {
-        logMessage('Lỗi: Các thời điểm trong CSV không liên tiếp theo giờ!', 'error');
+      // Kiểm tra ảnh đầu vào
+      if (!imageInput.files || imageInput.files.length === 0) {
+        logMessage('Lỗi: Vui lòng chọn một ảnh!', 'error');
         return;
       }
-    }
-    logMessage('Các thời điểm trong CSV liên tiếp.', 'success');
+      const imageFile = imageInput.files[0];
+      const imageMimeType = imageFile.type;
+      if (!imageMimeType || !imageMimeType.startsWith('image/')) {
+        logMessage('Lỗi: File không phải là ảnh hợp lệ!', 'error');
+        return;
+      }
 
-    try {
+      // Gọi API để kiểm tra ảnh có con sông hay không
+      logMessage('Đang kiểm tra ảnh hợp lệ...', 'info');
       const formData = new FormData();
       formData.append('image', imageFile);
-      formData.append('mmyy', mmyy);
-      formData.append('metadata', JSON.stringify(csvData.map(record => ({
-        hh: record['hh'],
-        dd: record['dd'],
-        'mm/yy': record['mm/yy'],
-        list_value: record.value
-      }))));
-      const response = await fetch('http://localhost:5000/save-data', {
+      const checkResponse = await fetch('http://localhost:5000/check-image', {
         method: 'POST',
         body: formData,
         credentials: 'include'
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Lỗi không biết');
-      imageId = data.image_id;
-      metadataIds = data.metadata_ids;
-      mmyyValue = data.mmyy;
-      logMessage('Đã lưu ảnh và metadata vào database.', 'success');
-    } catch (error) {
-      logMessage(`Lỗi khi lưu dữ liệu: ${error.message}`, 'error');
-      return;
-    }
+      const checkResult = await checkResponse.json();
+      if (!checkResponse.ok) {
+        throw new Error(checkResult.message || 'Lỗi khi kiểm tra ảnh');
+      }
 
-    // Tự động đóng log overlay sau 1 giây và hiển thị lịch
-    setTimeout(() => {
-      logOverlay.style.display = 'none';
-      lastDate = dates[dates.length - 1];
-      displayCalendar(lastDate);
-    }, 1000);
+      // Nếu không phát hiện được con sông, báo lỗi và dừng
+      if (!checkResult.has_river) {
+        logMessage(checkResult.error || 'Ảnh không hợp lệ: Không phát hiện được con sông.', 'error');
+        return;
+      }
+
+      // Nếu phát hiện được con sông, hiển thị thông báo xanh
+      logMessage('Ảnh hợp lệ.', 'success');
+
+      // Tiếp tục các kiểm tra khác trong Check Log
+      if (!csvInput.files || csvInput.files.length === 0) {
+        logMessage('Lỗi: Vui lòng chọn một file CSV!', 'error');
+        return;
+      }
+      logMessage('Đang kiểm tra file CSV...', 'info');
+      const csvFile = csvInput.files[0];
+      try {
+        csvData = await parseCSV(csvFile);
+        logMessage(`Đã đọc file CSV: ${csvData.length} bản ghi.`, 'success');
+        console.log('Dữ liệu CSV:', JSON.stringify(csvData, null, 2));
+      } catch (error) {
+        logMessage(`Lỗi khi đọc file CSV: ${error.message}`, 'error');
+        return;
+      }
+
+      if (csvData.length < 4) {
+        logMessage('Lỗi: File CSV phải có ít nhất 4 bản ghi!', 'error');
+        return;
+      }
+      logMessage('Số lượng bản ghi đủ (>= 4).', 'success');
+
+      if (!csvData.every(record => record['dd/mm/yy'] && record['hh'])) {
+        logMessage('Lỗi: Mỗi bản ghi phải có trường dd/mm/yy và hh!', 'error');
+        return;
+      }
+      logMessage('Tất cả bản ghi có trường dd/mm/yy và hh.', 'success');
+
+      if (!csvData.every(record => record.value && Array.isArray(record.value) && record.value.length === 3)) {
+        logMessage('Lỗi: Mỗi bản ghi phải có trường value chứa đúng 3 cặp name-value!', 'error');
+        return;
+      }
+      logMessage('Tất cả bản ghi có trường value hợp lệ.', 'success');
+
+      const mmyy = mmyyInput.value;
+      logMessage('Đang kiểm tra tháng/năm...', 'info');
+      if (!mmyy.match(/^\d{2}\/\d{2}$/)) {
+        logMessage('Lỗi: Định dạng tháng/năm không hợp lệ. Sử dụng mm/yy (ví dụ: 07/23)!', 'error');
+        return;
+      }
+      logMessage('Tháng/năm của ảnh hợp lệ.', 'success');
+
+      const csvMMYYs = csvData.map(record => record['mm/yy']);
+      if (!csvMMYYs.every(csvMMYY => csvMMYY === mmyy)) {
+        logMessage('Lỗi: Tháng/năm của ảnh không khớp với CSV!', 'error');
+        return;
+      }
+      logMessage('Tháng/năm khớp với CSV.', 'success');
+
+      const dates = csvData.map(record => moment(`${record['dd/mm/yy']} ${record['hh']}`, 'DD/MM/YY HH:mm:ss'));
+      logMessage('Đang kiểm tra thời điểm trong CSV...', 'info');
+      for (let i = 1; i < dates.length; i++) {
+        if (!dates[i].isSame(dates[i - 1].clone().add(1, 'hour'))) {
+          logMessage('Lỗi: Các thời điểm trong CSV không liên tiếp theo giờ!', 'error');
+          return;
+        }
+      }
+      logMessage('Các thời điểm trong CSV liên tiếp.', 'success');
+
+      logMessage('Đang lưu dữ liệu vào database...', 'info');
+      try {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('mmyy', mmyy);
+        formData.append('metadata', JSON.stringify(csvData.map(record => ({
+          hh: record['hh'],
+          dd: record['dd'],
+          'mm/yy': record['mm/yy'],
+          list_value: record.value
+        }))));
+        const response = await fetch('http://localhost:5000/save-data', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Lỗi không biết');
+        imageId = data.image_id;
+        metadataIds = data.metadata_ids;
+        mmyyValue = data.mmyy;
+        logMessage('Đã lưu ảnh và metadata vào database.', 'success');
+      } catch (error) {
+        logMessage(`Lỗi khi lưu dữ liệu: ${error.message}`, 'error');
+        return;
+      }
+
+      // Tự động đóng log overlay sau 1 giây và hiển thị lịch
+      setTimeout(() => {
+        logOverlay.style.display = 'none';
+        lastDate = dates[dates.length - 1];
+        displayCalendar(lastDate);
+      }, 1000);
+    } catch (error) {
+      console.error('Lỗi trong Check Log:', error.message);
+      logMessage(`Lỗi: ${error.message}`, 'error');
+    }
   });
 
-  // Xử lý lịch
+  // Xử lý lịch chọn ngày dự đoán
   function handleCalendarClick(e) {
     if (e.target.classList.contains('calendar-day')) {
       const selectedDate = e.target.dataset.date;
@@ -421,35 +454,158 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Hiển thị kết quả
+  // Hiển thị lịch 30 ngày để chọn ngày dự đoán
+  function displayCalendar(lastDate) {
+    calendarOrResult.innerHTML = `
+      <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Chọn Ngày Dự Đoán</h3>
+      <div id="calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
+      <div class="text-center">
+        <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
+      </div>
+    `;
+
+    const calendarGrid = document.getElementById('calendar-grid');
+    const confirmDatesBtn = document.getElementById('confirm-dates-btn');
+
+    const startDate = lastDate.clone().add(1, 'day'); // Bắt đầu từ ngày sau ngày cuối cùng trong CSV
+    for (let i = 0; i < 30; i++) {
+      const date = startDate.clone().add(i, 'day');
+      const dayDiv = document.createElement('div');
+      dayDiv.className = 'calendar-day p-2 border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700';
+      dayDiv.dataset.date = date.format('DD/MM/YY');
+      dayDiv.textContent = date.format('DD/MM/YY');
+      calendarGrid.appendChild(dayDiv);
+    }
+
+    calendarGrid.addEventListener('click', handleCalendarClick);
+
+    confirmDatesBtn.addEventListener('click', async () => {
+      if (!selectedStartDate || !selectedEndDate) {
+        logMessage('Lỗi: Vui lòng chọn khoảng ngày dự đoán!', 'error');
+        logOverlay.style.display = 'flex';
+        return;
+      }
+
+      const daysDiff = selectedEndDate.diff(selectedStartDate, 'days') + 1;
+      if (daysDiff > 30) {
+        logMessage('Lỗi: Số ngày dự đoán không vượt quá 30!', 'error');
+        logOverlay.style.display = 'flex';
+        return;
+      }
+
+      predictionDates = [];
+      let currentDate = selectedStartDate.clone();
+      while (currentDate.isSameOrBefore(selectedEndDate)) {
+        predictionDates.push(currentDate.format('DD/MM/YY'));
+        currentDate.add(1, 'day');
+      }
+
+      progressOverlay.style.display = 'flex';
+      progressBar.style.width = '0%';
+
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += 10;
+        progressBar.style.width = `${progress}%`;
+        if (progress >= 100) {
+          clearInterval(progressInterval);
+          performPrediction();
+        }
+      }, 300);
+
+      async function performPrediction() {
+        try {
+          // Không hiển thị logOverlay trong quá trình dự đoán
+          const response = await fetch('http://localhost:5000/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prediction_dates: predictionDates,
+              image_id: imageId,
+              metadata_ids: metadataIds,
+              mmyy: mmyyValue
+            }),
+            credentials: 'include'
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'Lỗi không biết');
+          predictionResults = data.results;
+
+          try {
+            const response = await fetch('http://localhost:5000/save-prediction', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                metadata_ids: metadataIds,
+                image_id: imageId,
+                predictions: predictionResults
+              }),
+              credentials: 'include'
+            });
+            const saveData = await response.json();
+            if (!response.ok) throw new Error(saveData.message || 'Lỗi không biết');
+          } catch (error) {
+            logMessage(`Lỗi khi lưu kết quả: ${error.message}`, 'error');
+            logOverlay.style.display = 'flex';
+          }
+
+          progressOverlay.style.display = 'none';
+          displayResults();
+        } catch (error) {
+          logMessage(`Lỗi khi dự đoán: ${error.message}`, 'error');
+          progressOverlay.style.display = 'none';
+          logOverlay.style.display = 'flex';
+        }
+      }
+    });
+  }
+
+  // Hiển thị kết quả dưới dạng lịch
   function displayResults() {
     calendarOrResult.innerHTML = `
       <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Kết Quả Dự Đoán</h3>
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr class="bg-gray-700">
-            <th class="p-2 border border-yellow-500 border-opacity-30">Ngày</th>
-            <th class="p-2 border border-yellow-500 border-opacity-30">Mực Nước Dự Đoán (m)</th>
-          </tr>
-        </thead>
-        <tbody id="result-table-body"></tbody>
-      </table>
+      <div id="result-calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
+      <div id="prediction-detail" class="text-center text-gray-100 mb-4"></div>
       <div class="text-center mt-4">
         <button id="download-result-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300 mr-2">Tải Về (.csv)</button>
         <button id="refresh-btn" class="bg-gradient-to-r from-gray-500 to-gray-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Làm Mới</button>
       </div>
     `;
 
-    const resultTableBody = document.getElementById('result-table-body');
-    predictionDates.forEach(date => {
-      const result = predictionResults.find(r => r[0] === date);
-      if (result) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td class="p-2 border border-yellow-500 border-opacity-30">${date}</td>
-          <td class="p-2 border border-yellow-500 border-opacity-30">${result[1]}</td>
-        `;
-        resultTableBody.appendChild(row);
+    const resultCalendarGrid = document.getElementById('result-calendar-grid');
+    const predictionDetail = document.getElementById('prediction-detail');
+
+    // Hiển thị lịch với các ngày đã dự đoán
+    const startDate = moment(predictionDates[0], 'DD/MM/YY');
+    const endDate = moment(predictionDates[predictionDates.length - 1], 'DD/MM/YY');
+    const totalDays = endDate.diff(startDate, 'days') + 1;
+
+    for (let i = 0; i < totalDays; i++) {
+      const date = startDate.clone().add(i, 'day');
+      const dateStr = date.format('DD/MM/YY');
+      const dayDiv = document.createElement('div');
+      dayDiv.className = 'calendar-day p-2 border border-yellow-500 border-opacity-30 text-center cursor-pointer hover:bg-gray-700';
+      dayDiv.dataset.date = dateStr;
+      dayDiv.textContent = dateStr;
+
+      // Nếu ngày này nằm trong predictionDates, tô màu để phân biệt
+      if (predictionDates.includes(dateStr)) {
+        dayDiv.classList.add('bg-gray-700');
+      }
+
+      resultCalendarGrid.appendChild(dayDiv);
+    }
+
+    // Thêm sự kiện nhấn vào ngày để hiển thị kết quả
+    resultCalendarGrid.addEventListener('click', (e) => {
+      if (e.target.classList.contains('calendar-day')) {
+        const selectedDate = e.target.dataset.date;
+        const result = predictionResults.find(r => r[0] === selectedDate);
+        if (result) {
+          predictionDetail.innerHTML = `Mực nước dự đoán ngày ${selectedDate}: ${result[1]} m`;
+        } else {
+          predictionDetail.innerHTML = `Không có dữ liệu dự đoán cho ngày ${selectedDate}.`;
+        }
       }
     });
 
@@ -491,109 +647,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reset calendar or result section
   function resetCalendarOrResult() {
     calendarOrResult.innerHTML = '';
-  }
-
-  // Hiển thị lịch 30 ngày
-  function displayCalendar(lastDate) {
-    calendarOrResult.innerHTML = `
-      <h3 class="text-lg font-bold mb-2 text-center text-gray-100">Chọn Ngày Dự Đoán</h3>
-      <div id="calendar-grid" class="grid grid-cols-7 gap-2 mb-4"></div>
-      <div class="text-center">
-        <button id="confirm-dates-btn" class="bg-gradient-to-r from-yellow-500 to-blue-400 text-gray-900 px-6 py-2 rounded-lg hover:transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300">Xác Nhận</button>
-      </div>
-    `;
-
-    const calendarGrid = document.getElementById('calendar-grid');
-    const confirmDatesBtn = document.getElementById('confirm-dates-btn');
-
-    const startDate = lastDate.clone().add(1, 'day'); // Bắt đầu từ ngày sau ngày cuối cùng trong CSV
-    for (let i = 0; i < 30; i++) {
-      const date = startDate.clone().add(i, 'day');
-      const dayDiv = document.createElement('div');
-      dayDiv.className = 'calendar-day';
-      dayDiv.dataset.date = date.format('DD/MM/YY');
-      dayDiv.textContent = date.format('DD/MM/YY');
-      calendarGrid.appendChild(dayDiv);
-    }
-
-    calendarGrid.addEventListener('click', handleCalendarClick);
-
-    confirmDatesBtn.addEventListener('click', async () => {
-      if (!selectedStartDate || !selectedEndDate) {
-        logMessage('Lỗi: Vui lòng chọn khoảng ngày dự đoán!', 'error');
-        return;
-      }
-
-      const daysDiff = selectedEndDate.diff(selectedStartDate, 'days') + 1;
-      if (daysDiff > 30) {
-        logMessage('Lỗi: Số ngày dự đoán không vượt quá 30!', 'error');
-        return;
-      }
-
-      predictionDates = [];
-      let currentDate = selectedStartDate.clone();
-      while (currentDate.isSameOrBefore(selectedEndDate)) {
-        predictionDates.push(currentDate.format('DD/MM/YY'));
-        currentDate.add(1, 'day');
-      }
-
-      progressOverlay.style.display = 'flex';
-      progressBar.style.width = '0%';
-
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += 10;
-        progressBar.style.width = `${progress}%`;
-        if (progress >= 100) {
-          clearInterval(progressInterval);
-          performPrediction();
-        }
-      }, 300);
-
-      async function performPrediction() {
-        try {
-          const response = await fetch('http://localhost:5000/predict', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prediction_dates: predictionDates,
-              image_id: imageId,
-              metadata_ids: metadataIds,
-              mmyy: mmyyValue
-            }),
-            credentials: 'include'
-          });
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.message || 'Lỗi không biết');
-          predictionResults = data.results;
-          logMessage('Hoàn tất dự đoán!', 'success');
-
-          try {
-            const response = await fetch('http://localhost:5000/save-prediction', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                metadata_ids: metadataIds,
-                image_id: imageId,
-                predictions: predictionResults
-              }),
-              credentials: 'include'
-            });
-            const saveData = await response.json();
-            if (!response.ok) throw new Error(saveData.message || 'Lỗi không biết');
-            logMessage('Lưu kết quả dự đoán thành công.', 'success');
-          } catch (error) {
-            logMessage(`Lỗi khi lưu kết quả: ${error.message}`, 'error');
-          }
-
-          progressOverlay.style.display = 'none';
-          displayResults();
-        } catch (error) {
-          logMessage(`Lỗi khi dự đoán: ${error.message}`, 'error');
-          progressOverlay.style.display = 'none';
-        }
-      }
-    });
   }
 
   // Parse CSV
@@ -662,7 +715,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Log message
   function logMessage(message, type, container = logMessages) {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message p-2 rounded-lg text-white ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+    messageDiv.className = `message p-2 rounded-lg text-white ${
+      type === 'success' ? 'bg-green-500' : type === 'info' ? 'bg-blue-500' : 'bg-red-500'
+    }`;
     messageDiv.textContent = message;
     container.appendChild(messageDiv);
     container.scrollTop = container.scrollHeight;

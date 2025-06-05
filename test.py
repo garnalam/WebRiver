@@ -34,8 +34,6 @@ def to_three_channel(mask):
     mask_rgb = np.stack([mask, mask, mask], axis=-1)
     return mask_rgb
 
-# Trong test.py
-# Trong test.py
 def run_prediction(image_path, metadata_path, output_path):
     try:
         # Đọc ảnh
@@ -108,7 +106,7 @@ def run_prediction(image_path, metadata_path, output_path):
         data_df = number_time_series(df)
 
         # Trích xuất đặc trưng số (dùng number_feature từ extract_features.py)
-        fc_model = build_FC_model()
+        fc_model = build_FC_model()  # Sử dụng build_FC_model thay vì load_model
         numeric_features_array = number_feature(fc_model, data_df)
         numeric_features_df = pd.DataFrame(
             numeric_features_array,
